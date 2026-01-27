@@ -3394,7 +3394,7 @@ PYTORCH_SPECIFIC_MAPPINGS = collections.OrderedDict([
     ("cudnnTensorDescriptor_t ", "miopenTensorDescriptor_t "),
     ("CUDNN_ENFORCE", "MIOPEN_ENFORCE"),
     ("CUDNN_CHECK", "MIOPEN_CHECK"),
-    
+
     # NVSHMEM mappings
     ("NVSHMEM_TEAM_INVALID", "ROCSHMEM_TEAM_INVALID"),
     ("NVSHMEM_TEAM_WORLD", "ROCSHMEM_TEAM_WORLD"),
