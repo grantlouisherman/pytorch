@@ -1,13 +1,14 @@
-# mypy: allow-untyped-defs
 # Copyright (c) Facebook, Inc. and its affiliates.
 # All rights reserved.
 #
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+from __future__ import annotations
+
 import copy
 from collections.abc import Callable, Iterable, Sequence
-from typing import Any, NoReturn, Union
+from typing import Any, NoReturn
 
 import torch
 import torch.nn as nn
@@ -31,8 +32,8 @@ def raise_parameter_tying_error() -> NoReturn:
 
 
 def create_names_map(
-    named_params: Union[dict[str, Tensor], Iterable[tuple[str, Tensor]]],
-    tied_named_params: Union[dict[str, Tensor], Iterable[tuple[str, Tensor]]],
+    named_params: dict[str, Tensor] | Iterable[tuple[str, Tensor]],
+    tied_named_params: dict[str, Tensor] | Iterable[tuple[str, Tensor]],
 ) -> dict[str, list[str]]:
     """
     named_params is a dictionary of tensors: {'A': A, 'B': B}
@@ -168,7 +169,9 @@ def load_state(
     return model
 
 
-def make_functional_deprecated_v1(model: nn.Module):
+def make_functional_deprecated_v1(
+    model: nn.Module,
+) -> tuple[tuple[Tensor, ...], Callable[..., Any], tuple[str, ...]]:
     """make_functional_deprecated_v1(model) -> weights, func, weight_names
 
     Given an nn.Module, make_functional_deprecated_v1 extracts the state (weights)
@@ -202,7 +205,7 @@ def make_functional_deprecated_v1(model: nn.Module):
         )
     weights, descriptors, _ = extract_weights(model)
 
-    def fun(weights, data):
+    def fun(weights: tuple[Tensor, ...], data: tuple[Any, ...]) -> Any:
         mutable_model = copy.deepcopy(model)
         load_weights(mutable_model, descriptors, weights)
         return mutable_model(*data)
@@ -210,7 +213,15 @@ def make_functional_deprecated_v1(model: nn.Module):
     return weights, fun, descriptors
 
 
-def make_functional_with_buffers_deprecated_v1(model: nn.Module):
+def make_functional_with_buffers_deprecated_v1(
+    model: nn.Module,
+) -> tuple[
+    tuple[Tensor, ...],
+    tuple[Tensor, ...],
+    Callable[..., Any],
+    tuple[str, ...],
+    tuple[str, ...],
+]:
     """make_functional_with_buffers_deprecated_v1(model) -> weights, buffers, func, weight_names, buffer_names
 
     Given an nn.Module, make_functional_with_buffers_deprecated_v1 extracts the state (weights and buffers)
@@ -238,7 +249,11 @@ def make_functional_with_buffers_deprecated_v1(model: nn.Module):
     weights, weight_descriptors, _ = extract_weights(model)
     buffers, buf_descriptors, _ = extract_buffers(model)
 
-    def fun(weights, buffers, data):
+    def fun(
+        weights: tuple[Tensor, ...],
+        buffers: tuple[Tensor, ...],
+        data: tuple[Any, ...],
+    ) -> Any:
         mutable_model = copy.deepcopy(model)
         load_weights(mutable_model, weight_descriptors, weights)
         load_buffers(mutable_model, buf_descriptors, buffers)
@@ -288,7 +303,7 @@ class FunctionalModuleWithBuffers(nn.Module):
         )
 
     def forward(
-        self, params: Iterable[Tensor], buffers: Iterable[Tensor], *args, **kwargs
+        self, params: Iterable[Tensor], buffers: Iterable[Tensor], *args: Any, **kwargs: Any
     ) -> Any:
         # Temporarily load the state back onto self.stateless_model
         old_state = _swap_state(
@@ -331,7 +346,7 @@ class FunctionalModule(nn.Module):
                 param.requires_grad_(False)
         return FunctionalModule(model_copy, param_names, names_map), params
 
-    def forward(self, params: Iterable[Tensor], *args, **kwargs) -> Any:
+    def forward(self, params: Iterable[Tensor], *args: Any, **kwargs: Any) -> Any:
         # Temporarily load the state back onto self.stateless_model
         old_state = _swap_state(self.stateless_model, self.names_map, params)
         try:
@@ -550,10 +565,12 @@ def combine_state_for_ensemble(
 
 def functional_init(
     model_class: type[nn.Module],
-    ensemble_shape: Union[tuple[()], tuple[int, ...]] = (),
+    ensemble_shape: tuple[()] | tuple[int, ...] = (),
     device: torch.types.Device = "cpu",
-):
-    def wrapped(*args, **kwargs):
+) -> Callable[..., tuple[tuple[Tensor, ...], Callable[..., Any], tuple[str, ...]]]:
+    def wrapped(
+        *args: Any, **kwargs: Any
+    ) -> tuple[tuple[Tensor, ...], Callable[..., Any], tuple[str, ...]]:
         if len(ensemble_shape) >= 2:
             raise ValueError("NYI: ensemble_shape with more than 1 element")
         if len(ensemble_shape) == 0:
@@ -577,14 +594,32 @@ def functional_init(
 
 def functional_init_with_buffers(
     model_class: type[nn.Module],
-    ensemble_shape: Union[tuple[()], tuple[int, ...]] = (),
+    ensemble_shape: tuple[()] | tuple[int, ...] = (),
     device: torch.types.Device = "cpu",
-):
-    def wrapped(*args, **kwargs):
+) -> Callable[
+    ...,
+    tuple[
+        tuple[Tensor, ...],
+        tuple[Tensor, ...],
+        Callable[..., Any],
+        tuple[str, ...],
+        tuple[str, ...],
+    ],
+]:
+    def wrapped(
+        *args: Any, **kwargs: Any
+    ) -> tuple[
+        tuple[Tensor, ...],
+        tuple[Tensor, ...],
+        Callable[..., Any],
+        tuple[str, ...],
+        tuple[str, ...],
+    ]:
         if len(ensemble_shape) >= 2:
             raise ValueError("NYI: ensemble_shape with more than 1 element")
         if len(ensemble_shape) == 0:
             model = model_class(*args, **kwargs).to(device)
+            # pyrefly: ignore [bad-return]
             return make_functional_deprecated_v1(model)
         num_models = ensemble_shape[0]  # type: ignore[misc]
         if num_models <= 0:

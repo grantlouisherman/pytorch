@@ -149,3 +149,45 @@ matches = "torch/_functorch/compilers.py"
 [sub-config.errors]
 implicit-import = false
 implicit-any = true
+
+[[sub-config]]
+matches = "torch/_functorch/autograd_function.py"
+[sub-config.errors]
+implicit-import = false
+implicit-any = true
+
+[[sub-config]]
+matches = "torch/_functorch/pyfunctorch.py"
+[sub-config.errors]
+implicit-import = false
+implicit-any = true
+
+[[sub-config]]
+matches = "torch/_functorch/deprecated.py"
+[sub-config.errors]
+implicit-import = false
+implicit-any = true
+
+[[sub-config]]
+matches = "torch/_functorch/functional_call.py"
+[sub-config.errors]
+implicit-import = false
+implicit-any = true
+
+[[sub-config]]
+matches = "torch/_functorch/make_functional.py"
+[sub-config.errors]
+implicit-import = false
+implicit-any = true
+
+[[sub-config]]
+matches = "torch/_functorch/apis.py"
+[sub-config.errors]
+implicit-import = false
+implicit-any = true
+
+[[sub-config]]
+matches = "torch/_functorch/partitioners.py"
+[sub-config.errors]
+implicit-import = false
+implicit-any = true

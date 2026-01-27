@@ -1,10 +1,13 @@
-# mypy: allow-untyped-defs
 # NOTE: We allow Dynamo to see this file (via torch/_dynamo/trace_rules.py) so that it can
 #       trace through functorch transforms.
 #       Currently, we can't allow Dynamo to see `eager_transforms.py`/`vmap.py` as that break a lot of thing
 #       and there isn't a mechanism to selectively expose only some functions (eg. grad) from a file
 #       to Dynamo.
+
+from __future__ import annotations
+
 import functools
+from typing import Any
 
 from torch._functorch.utils import argnums_t, exposed_in
 from torch._functorch.vmap import (
@@ -29,13 +32,13 @@ from torch._functorch.vmap import (
 
 @exposed_in("torch.func")
 def vmap(
-    func: Callable,
+    func: Callable[..., Any],
     in_dims: in_dims_t = 0,
     out_dims: out_dims_t = 0,
     randomness: str = "error",
     *,
-    chunk_size=None,
-) -> Callable:
+    chunk_size: int | None = None,
+) -> Callable[..., Any]:
     """
     vmap is the vectorizing map; ``vmap(func)`` returns a new function that
     maps ``func`` over some dimension of the inputs. Semantically, vmap
@@ -204,7 +207,7 @@ def vmap(
             f"vmap: chunk_size should be None or greater than 0. (got {chunk_size})"
         )
 
-    def wrapped(*args, **kwargs):
+    def wrapped(*args: Any, **kwargs: Any) -> Any:
         return vmap_impl(
             func, in_dims, out_dims, randomness, chunk_size, *args, **kwargs
         )
@@ -216,12 +219,12 @@ def vmap(
 
 
 def chunk_vmap(
-    func: Callable,
+    func: Callable[..., Any],
     in_dims: in_dims_t = 0,
     out_dims: out_dims_t = 0,
     randomness: str = "error",
-    chunks=2,
-) -> Callable:
+    chunks: int = 2,
+) -> Callable[..., Any]:
     """
     chunk_vmap is the vectorizing map (vmap) using chunks of input data. It is a mix of vmap (which vectorizes
     everything) and map (which executes things sequentially). ``chunk_vmap`` vectorizes the input with number of
@@ -263,7 +266,11 @@ def chunk_vmap(
     if chunks == 1:
         return vmap(func, in_dims=in_dims, out_dims=out_dims, randomness=randomness)
 
-    def _get_chunk_flat_args(flat_args_, flat_in_dims_, chunks_):
+    def _get_chunk_flat_args(
+        flat_args_: list[Any],
+        flat_in_dims_: list[int | None],
+        chunks_: int,
+    ) -> Any:
         flat_args_chunks = tuple(
             t.chunk(chunks_, dim=in_dim)
             if in_dim is not None
@@ -279,7 +286,7 @@ def chunk_vmap(
         return chunks_flat_args
 
     @functools.wraps(func)
-    def wrapped_with_chunks(*args, **kwargs):
+    def wrapped_with_chunks(*args: Any, **kwargs: Any) -> Any:
         _check_out_dims_is_int_or_int_pytree(out_dims, func)
         _, flat_in_dims, flat_args, args_spec = _process_batched_inputs(
             in_dims, args, func
@@ -302,7 +309,9 @@ def chunk_vmap(
 
 
 @exposed_in("torch.func")
-def grad(func: Callable, argnums: argnums_t = 0, has_aux: bool = False) -> Callable:
+def grad(
+    func: Callable[..., Any], argnums: argnums_t = 0, has_aux: bool = False
+) -> Callable[..., Any]:
     """``grad`` operator helps computing gradients of ``func`` with respect to the
     input(s) specified by ``argnums``. This operator can be nested to
     compute higher-order gradients.
@@ -402,7 +411,7 @@ def grad(func: Callable, argnums: argnums_t = 0, has_aux: bool = False) -> Calla
     import torch._functorch.eager_transforms as eager_transforms
     from torch.compiler import is_compiling
 
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         return eager_transforms.grad_impl(func, argnums, has_aux, args, kwargs)
 
     if not is_compiling():
@@ -413,8 +422,8 @@ def grad(func: Callable, argnums: argnums_t = 0, has_aux: bool = False) -> Calla
 
 @exposed_in("torch.func")
 def grad_and_value(
-    func: Callable, argnums: argnums_t = 0, has_aux: bool = False
-) -> Callable:
+    func: Callable[..., Any], argnums: argnums_t = 0, has_aux: bool = False
+) -> Callable[..., Any]:
     """
     Returns a function to compute a tuple of the gradient and primal, or
     forward, computation.
@@ -445,7 +454,7 @@ def grad_and_value(
     from torch._functorch import eager_transforms
     from torch.compiler import is_compiling
 
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         return eager_transforms.grad_and_value_impl(
             func, argnums, has_aux, args, kwargs
         )
